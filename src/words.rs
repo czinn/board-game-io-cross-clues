@@ -1,4 +1,4 @@
-static words: Vec<&str> = vec![
+pub const WORDS: &'static [&'static str] = &[
     "cook",
     "soldier",
     "lentils",

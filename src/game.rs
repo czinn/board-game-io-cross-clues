@@ -12,6 +12,7 @@ use tracing::instrument;
 use crate::action::Action;
 use crate::config::Config;
 use crate::tile::Tile;
+use crate::words::WORDS;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Clue {
@@ -33,6 +34,7 @@ impl Clue {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Game {
     size: Tile,
+    labels: Vec<String>, // first rows, then columns
     players: Vec<PlayerId>,
     player_tiles: BTreeMap<PlayerId, Option<Tile>>,
     current_clue: Option<Clue>,
@@ -58,6 +60,7 @@ impl Game {
 #[derive(Serialize)]
 pub struct View<'a> {
     size: &'a Tile,
+    labels: &'a Vec<String>,
     players: &'a Vec<PlayerId>,
     players_with_tiles: Vec<PlayerId>,
     player_tile: Option<Tile>,
@@ -82,8 +85,13 @@ impl GameTrait for Game {
         tiles.shuffle(&mut thread_rng());
         let player_tiles: BTreeMap<PlayerId, Option<Tile>> =
             players.iter().map(|p| (*p, tiles.pop())).collect();
+        let labels: Vec<String> = WORDS
+            .choose_multiple(&mut thread_rng(), size.row + size.col)
+            .map(|s| s.to_string())
+            .collect();
         Ok(Game {
             size,
+            labels,
             players,
             player_tiles,
             current_clue: None,
@@ -102,6 +110,7 @@ impl GameTrait for Game {
     fn view<'a>(&'a self, player: Option<PlayerId>) -> Self::View<'a> {
         let Self {
             size,
+            labels,
             players,
             player_tiles,
             current_clue,
@@ -144,6 +153,7 @@ impl GameTrait for Game {
         };
         Self::View {
             size: &size,
+            labels: &labels,
             players: &players,
             players_with_tiles,
             player_tile,
