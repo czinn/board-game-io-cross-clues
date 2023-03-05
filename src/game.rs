@@ -38,10 +38,10 @@ pub struct Game {
     players: Vec<PlayerId>,
     player_tiles: BTreeMap<PlayerId, Option<Tile>>,
     current_clue: Option<Clue>,
-    past_clues: Vec<Clue>,
     tiles: Vec<Tile>,
     votes: BTreeMap<Tile, Vec<PlayerId>>,
-    open_tiles: Vec<Tile>,
+    good_clues: Vec<Vec<Option<Clue>>>,
+    bad_clues: Vec<Clue>,
 }
 
 impl Game {
@@ -53,7 +53,7 @@ impl Game {
     }
 
     fn game_over(&self) -> bool {
-        self.past_clues.len() == self.size.row * self.size.col
+        self.tiles.len() == 0 && self.player_tiles.values().all(|tile| tile.is_none())
     }
 }
 
@@ -65,10 +65,10 @@ pub struct View<'a> {
     players_with_tiles: Vec<PlayerId>,
     player_tile: Option<Tile>,
     current_clue: Option<Clue>,
-    past_clues: Vec<Clue>,
     tiles_remaining: usize,
     votes: Vec<(&'a Tile, &'a Vec<PlayerId>)>,
-    open_tiles: &'a Vec<Tile>,
+    good_clues: &'a Vec<Vec<Option<Clue>>>,
+    bad_clues: Vec<Clue>,
 }
 
 impl GameTrait for Game {
@@ -81,7 +81,7 @@ impl GameTrait for Game {
         let mut tiles: Vec<Tile> = (0..size.row)
             .flat_map(|row| (0..size.col).map(move |col| Tile { row, col }))
             .collect();
-        let open_tiles = tiles.clone();
+        let good_clues: Vec<Vec<Option<Clue>>> = (0..size.row).map(|_row| vec![None; size.col]).collect();
         tiles.shuffle(&mut thread_rng());
         let player_tiles: BTreeMap<PlayerId, Option<Tile>> =
             players.iter().map(|p| (*p, tiles.pop())).collect();
@@ -95,10 +95,10 @@ impl GameTrait for Game {
             players,
             player_tiles,
             current_clue: None,
-            past_clues: Vec::new(),
             tiles,
             votes: BTreeMap::new(),
-            open_tiles,
+            good_clues,
+            bad_clues: Vec::new(),
         })
     }
 
@@ -114,10 +114,10 @@ impl GameTrait for Game {
             players,
             player_tiles,
             current_clue,
-            past_clues,
             tiles,
             votes,
-            open_tiles,
+            good_clues,
+            bad_clues,
         } = &self;
         let current_clue = match current_clue {
             None => None,
@@ -137,18 +137,12 @@ impl GameTrait for Game {
             Some(player) => player_tiles.get(&player).map(|o| o.clone()).flatten(),
             None => None,
         };
-        let past_clues = if self.game_over() {
-            past_clues.clone()
+        let bad_clues = if self.game_over() {
+            bad_clues.clone()
         } else {
-            past_clues
+            bad_clues
                 .iter()
-                .map(|clue| {
-                    if clue.tile != clue.guess {
-                        clue.hide_tile()
-                    } else {
-                        clue.clone()
-                    }
-                })
+                .map(|clue| clue.hide_tile())
                 .collect()
         };
         Self::View {
@@ -158,10 +152,10 @@ impl GameTrait for Game {
             players_with_tiles,
             player_tile,
             current_clue,
-            past_clues,
             tiles_remaining: tiles.len(),
             votes: votes.iter().collect(),
-            open_tiles: &open_tiles,
+            good_clues: &good_clues,
+            bad_clues,
         }
     }
 
@@ -190,7 +184,7 @@ impl GameTrait for Game {
                 Ok(())
             }
             Action::SetVote { tile, vote } => {
-                if !self.open_tiles.contains(tile) {
+                if self.good_clues[tile.row][tile.col].is_some() {
                     return Err(Error::InvalidAction("tile is not open".into()));
                 }
 
@@ -212,15 +206,23 @@ impl GameTrait for Game {
                     Some(clue) => clue,
                     None => return Err(Error::InvalidAction("no active clue".into())),
                 };
-                if current_clue.tile == Some(tile.clone()) {
-                    if let Some(index) = self.open_tiles.iter().position(|t| t == tile) {
-                        self.open_tiles.swap_remove(index);
-                    }
-                }
-                current_clue.guess = Some(tile.clone());
-                self.past_clues.push(current_clue);
-                if self.open_tiles.contains(tile) {
+                if self.good_clues[tile.row][tile.col].is_some() {
+                    self.current_clue.insert(current_clue);
                     return Err(Error::InvalidAction("tile is not open".into()));
+                }
+                if current_clue.player == player {
+                    self.current_clue.insert(current_clue);
+                    return Err(Error::InvalidAction("cannot guess for own clue".into()));
+                }
+                // action is valid
+                let new_tile = self.tiles.pop();
+                let player_tile = self.get_player_tile(&current_clue.player).unwrap();
+                *player_tile = new_tile;
+                current_clue.guess = Some(tile.clone());
+                if current_clue.tile == current_clue.guess {
+                    let _inserted = self.good_clues[tile.row][tile.col].insert(current_clue);
+                } else {
+                    self.bad_clues.push(current_clue);
                 }
                 Ok(())
             }
