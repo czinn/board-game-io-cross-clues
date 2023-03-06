@@ -20,6 +20,7 @@ pub struct Clue {
     tile: Option<Tile>, // sometimes hidden
     clue: String,
     guess: Option<Tile>,
+    guesser: Option<PlayerId>,
 }
 
 impl Clue {
@@ -39,7 +40,7 @@ pub struct Game {
     player_tiles: BTreeMap<PlayerId, Option<Tile>>,
     current_clue: Option<Clue>,
     tiles: Vec<Tile>,
-    votes: BTreeMap<Tile, Vec<PlayerId>>,
+    votes: Vec<Vec<Vec<PlayerId>>>,
     good_clues: Vec<Vec<Option<Clue>>>,
     bad_clues: Vec<Clue>,
 }
@@ -66,7 +67,7 @@ pub struct View<'a> {
     player_tile: Option<Tile>,
     current_clue: Option<Clue>,
     tiles_remaining: usize,
-    votes: Vec<(&'a Tile, &'a Vec<PlayerId>)>,
+    votes: &'a Vec<Vec<Vec<PlayerId>>>,
     good_clues: &'a Vec<Vec<Option<Clue>>>,
     bad_clues: Vec<Clue>,
 }
@@ -82,6 +83,7 @@ impl GameTrait for Game {
             .flat_map(|row| (0..size.col).map(move |col| Tile { row, col }))
             .collect();
         let good_clues: Vec<Vec<Option<Clue>>> = (0..size.row).map(|_row| vec![None; size.col]).collect();
+        let votes: Vec<Vec<Vec<PlayerId>>> = (0..size.row).map(|_row| (0..size.col).map(|_col| Vec::new()).collect()).collect();
         tiles.shuffle(&mut thread_rng());
         let player_tiles: BTreeMap<PlayerId, Option<Tile>> =
             players.iter().map(|p| (*p, tiles.pop())).collect();
@@ -96,7 +98,7 @@ impl GameTrait for Game {
             player_tiles,
             current_clue: None,
             tiles,
-            votes: BTreeMap::new(),
+            votes,
             good_clues,
             bad_clues: Vec::new(),
         })
@@ -153,7 +155,7 @@ impl GameTrait for Game {
             player_tile,
             current_clue,
             tiles_remaining: tiles.len(),
-            votes: votes.iter().collect(),
+            votes: &votes,
             good_clues: &good_clues,
             bad_clues,
         }
@@ -180,6 +182,7 @@ impl GameTrait for Game {
                     tile: Some(player_tile),
                     clue: clue.clone(),
                     guess: None,
+                    guesser: None,
                 });
                 Ok(())
             }
@@ -187,8 +190,15 @@ impl GameTrait for Game {
                 if self.good_clues[tile.row][tile.col].is_some() {
                     return Err(Error::InvalidAction("tile is not open".into()));
                 }
+                if let Some(clue) = &self.current_clue {
+                    if clue.player == player {
+                        return Err(Error::InvalidAction("cannot vote on own clue".into()));
+                    }
+                } else {
+                    return Err(Error::InvalidAction("no active clue".into()));
+                }
 
-                let votes = self.votes.entry(tile.clone()).or_insert_with(|| Vec::new());
+                let votes = &mut self.votes[tile.row][tile.col];
                 let my_vote_index = votes.iter().position(|p| *p == player);
                 match (my_vote_index, vote) {
                     (Some(_), true) => (),
@@ -215,10 +225,16 @@ impl GameTrait for Game {
                     return Err(Error::InvalidAction("cannot guess for own clue".into()));
                 }
                 // action is valid
+                for vote_row in self.votes.iter_mut() {
+                    for vote_cell in vote_row.iter_mut() {
+                        vote_cell.clear();
+                    }
+                }
                 let new_tile = self.tiles.pop();
                 let player_tile = self.get_player_tile(&current_clue.player).unwrap();
                 *player_tile = new_tile;
                 current_clue.guess = Some(tile.clone());
+                current_clue.guesser = Some(player);
                 if current_clue.tile == current_clue.guess {
                     let _inserted = self.good_clues[tile.row][tile.col].insert(current_clue);
                 } else {

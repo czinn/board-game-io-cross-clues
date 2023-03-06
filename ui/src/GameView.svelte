@@ -34,10 +34,15 @@ function tile_coords(tile) {
 function find_clue(row, col) {
   for (let i = 0; i < $view.bad_clues.length; i++) {
     if ($view.bad_clues[i].tile.row === row && $view.bad_clues[i].tile.col === col) {
-      return $view.bad_clues[i].clue;
+      return $view.bad_clues[i];
     }
   }
   return "";
+}
+
+function toggle_vote(row, col) {
+  const current_vote = $view.votes[row][col].includes($player_id);
+  dispatch('do_action', {'type': 'set_vote', 'tile': {'row': row, 'col': col}, 'vote': !current_vote});
 }
 </script>
 
@@ -57,15 +62,20 @@ function find_clue(row, col) {
       <tr>
         <td class='row-label'>{row + 1}<br/>{ row_label }</td>
         {#each $col_labels as col_label, col}
-          <td class='card'>
+          <td class='card' on:click={() => toggle_vote(row, col)}>
             {#if $view.good_clues[row][col] !== null}
               <p class='good-clue'>{ $view.good_clues[row][col].clue }</p>
+              <PlayerName player_id={$view.good_clues[row][col].player}/>
             {:else}
+              {#each $view.votes[row][col] as voter, i}
+                {#if i > 0}, {/if}<PlayerName player_id={voter}/>
+              {/each}
               {#if $view.current_clue !== null && $view.current_clue.player !== $player_id}
-                <button on:click={() => tap_tile(row, col)}>Tap</button>
+                <button on:click={() => tap_tile(row, col)}>👆</button>
               {/if}
               {#if $view.players_with_tiles.length === 0}
-                <p class='bad-clue'>{ find_clue(row, col) }</p>
+                <p class='bad-clue'>{ find_clue(row, col).clue }</p>
+                <PlayerName player_id={find_clue(row, col).player}/>
               {/if}
             {/if}
           </td>
@@ -100,6 +110,7 @@ function find_clue(row, col) {
       <tr>
         <th>Player</th>
         <th>Clue</th>
+        <th>Guesser</th>
         <th>Guess</th>
         {#if $view.bad_clues[0].tile !== null}
           <th>Actual</th>
@@ -109,6 +120,7 @@ function find_clue(row, col) {
         <tr>
           <td><PlayerName player_id={bad_clue.player}/></td>
           <td>{ bad_clue.clue }</td>
+          <td><PlayerName player_id={bad_clue.guesser}/></td>
           <td>{ tile_coords(bad_clue.guess) }</td>
           {#if bad_clue.tile !== null}
             <td>{ tile_coords(bad_clue.tile) }</td>
@@ -138,25 +150,35 @@ table.bad-guesses {
 
 table.cards {
   margin: 0 auto;
-  font-size: 1.5em;
 }
 
 td.col-label {
   padding: 0.5em;
+  font-size: 1.5em;
 }
 
 td.row-label {
   padding: 0.5em;
+  font-size: 1.5em;
   text-align: right;
 }
 
 td.card {
-  width: 6em;
-  height: 6em;
-  max-width: 6em;
-  max-height: 6em;
+  width: 8em;
+  height: 8em;
+  max-width: 8em;
+  max-height: 8em;
   border: 1px solid white;
   word-wrap: break-word;
+  position: relative;
+  user-select: none;
+}
+
+td.card button {
+  position: absolute;
+  bottom: -0.25em;
+  right: -0.25em;
+  padding: 0.25em;
 }
 
 p.clue {
@@ -170,9 +192,11 @@ span.number {
 
 .good-clue {
   color: #00FF00;
+  font-size: 1.5em;
 }
 
 .bad-clue {
   color: #FF0000;
+  font-size: 1.5em;
 }
 </style>
