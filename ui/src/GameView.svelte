@@ -49,7 +49,22 @@ function toggle_vote(row, col) {
 <div class="content">
   <h1>Cross Clues</h1>
   {#if $view.players_with_tiles.length === 0}
-    <h2>Game over! Score: { $view.size.row * $view.size.col - $view.bad_clues.length }</h2>
+    <h2>Score: { $view.size.row * $view.size.col - $view.bad_clues.length }</h2>
+  {/if}
+  {#if $view.player_tile !== null}
+    <p>Your tile is <strong>{ tile_coords($view.player_tile) }</strong> ({$col_labels[$view.player_tile.col]}, {$row_labels[$view.player_tile.row]})</p>
+  {/if}
+  {#if $view.current_clue === null}
+    {#if $view.player_tile !== null}
+      <form on:submit|preventDefault={() => give_clue()}>
+        <input bind:value={clue_to_give}/>
+        <button type='submit' disabled={!clue_is_valid(clue_to_give)}>
+          Give Clue
+        </button>
+      </form>
+    {/if}
+  {:else}
+    <p class='clue'><PlayerName player_id={$view.current_clue.player}/> gave the clue <strong>{$view.current_clue.clue}</strong></p>
   {/if}
   <table class='cards'>
     <tr>
@@ -65,7 +80,6 @@ function toggle_vote(row, col) {
           <td class='card' on:click={() => toggle_vote(row, col)}>
             {#if $view.good_clues[row][col] !== null}
               <p class='good-clue'>{ $view.good_clues[row][col].clue }</p>
-              <PlayerName player_id={$view.good_clues[row][col].player}/>
             {:else}
               {#each $view.votes[row][col] as voter, i}
                 {#if i > 0}, {/if}<PlayerName player_id={voter}/>
@@ -75,7 +89,6 @@ function toggle_vote(row, col) {
               {/if}
               {#if $view.players_with_tiles.length === 0}
                 <p class='bad-clue'>{ find_clue(row, col).clue }</p>
-                <PlayerName player_id={find_clue(row, col).player}/>
               {/if}
             {/if}
           </td>
@@ -83,19 +96,6 @@ function toggle_vote(row, col) {
       </tr>
     {/each}
   </table>
-  {#if $view.current_clue === null}
-    {#if $view.player_tile !== null}
-      <p>Your tile is <strong>{ tile_coords($view.player_tile) }</strong> ({$col_labels[$view.player_tile.col]}, {$row_labels[$view.player_tile.row]})</p>
-      <form on:submit|preventDefault={() => give_clue()}>
-        <input bind:value={clue_to_give}/>
-        <button type='submit' disabled={!clue_is_valid(clue_to_give)}>
-          Give Clue
-        </button>
-      </form>
-    {/if}
-  {:else}
-    <p class='clue'><PlayerName player_id={$view.current_clue.player}/> gave the clue <strong>{$view.current_clue.clue}</strong></p>
-  {/if}
   {#if $view.players_with_tiles.length !== $view.players.length && $view.players_with_tiles.length > 0}
     <hr>
     <h2>Remaining players with clues to give</h2>
