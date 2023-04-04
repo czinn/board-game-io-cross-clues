@@ -8,16 +8,18 @@ export let readonly;
 
 let rows = config.size.row;
 let cols = config.size.col;
+let word_lists = config.word_lists;
 
 function config_changed(config) {
   rows = config.size.row;
   cols = config.size.col;
+  word_lists = config.word_lists;
 }
 
 $: config_changed(config);
 
 function update_config() {
-  dispatch('config_change', {'size': {'row': rows, 'col': cols}});
+  dispatch('config_change', {'size': {'row': rows, 'col': cols}, 'word_lists': word_lists});
 }
 </script>
 
@@ -28,6 +30,12 @@ function update_config() {
       Columns: <input type="number" bind:value={cols} min=3 max=10 on:change={() => update_config()}/>
     {/if}
     <p>{rows} rows by {cols} columns</p>
+    <h3>Word lists</h3>
+    <ul>
+      {#each word_lists as word_list}
+        <li>{word_list[0]} <input type=checkbox disabled={readonly} bind:checked={word_list[1]} on:change={() => update_config()}/></li>
+      {/each}
+    </ul>
   {/if}
 </div>
 

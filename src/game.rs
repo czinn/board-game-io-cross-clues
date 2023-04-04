@@ -1,6 +1,6 @@
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap,HashSet};
 
 use board_game_io_base::error::Error;
 use board_game_io_base::game::Game as GameTrait;
@@ -12,7 +12,7 @@ use tracing::instrument;
 use crate::action::Action;
 use crate::config::Config;
 use crate::tile::Tile;
-use crate::words::WORDS;
+use crate::words::get_word_lists;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Clue {
@@ -77,17 +77,32 @@ impl GameTrait for Game {
     type Action = Action;
     type Config = Config;
 
-    fn new(Config { size }: Config, num_players: u32) -> Result<Self> {
+    fn new(Config { size, word_lists }: Config, num_players: u32) -> Result<Self> {
         let players: Vec<PlayerId> = (0..num_players).map(|x| PlayerId(x)).collect();
         let mut tiles: Vec<Tile> = (0..size.row)
             .flat_map(|row| (0..size.col).map(move |col| Tile { row, col }))
             .collect();
-        let good_clues: Vec<Vec<Option<Clue>>> = (0..size.row).map(|_row| vec![None; size.col]).collect();
-        let votes: Vec<Vec<Vec<PlayerId>>> = (0..size.row).map(|_row| (0..size.col).map(|_col| Vec::new()).collect()).collect();
+        let good_clues: Vec<Vec<Option<Clue>>> =
+            (0..size.row).map(|_row| vec![None; size.col]).collect();
+        let votes: Vec<Vec<Vec<PlayerId>>> = (0..size.row)
+            .map(|_row| (0..size.col).map(|_col| Vec::new()).collect())
+            .collect();
         tiles.shuffle(&mut thread_rng());
         let player_tiles: BTreeMap<PlayerId, Option<Tile>> =
             players.iter().map(|p| (*p, tiles.pop())).collect();
-        let labels: Vec<String> = WORDS
+        let all_word_lists = get_word_lists();
+        let word_set: HashSet<&&'static str> = word_lists.into_iter().flat_map(|(key, enabled)| {
+            if enabled {
+                all_word_lists.get(&key).unwrap().into_iter()
+            } else {
+                [].iter()
+            }
+        }).collect();
+        let words: Vec<&&'static str> = word_set.into_iter().collect();
+        if words.len() < size.row + size.col {
+            return Err(Error::InvalidCreate);
+        }
+        let labels: Vec<String> = words
             .choose_multiple(&mut thread_rng(), size.row + size.col)
             .map(|s| s.to_string())
             .collect();
@@ -142,10 +157,7 @@ impl GameTrait for Game {
         let bad_clues = if self.game_over() {
             bad_clues.clone()
         } else {
-            bad_clues
-                .iter()
-                .map(|clue| clue.hide_tile())
-                .collect()
+            bad_clues.iter().map(|clue| clue.hide_tile()).collect()
         };
         Self::View {
             size: &size,
