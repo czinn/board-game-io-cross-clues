@@ -1,6 +1,6 @@
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use std::collections::{BTreeMap,HashSet};
+use std::collections::{BTreeMap, HashSet};
 
 use board_game_io_base::error::Error;
 use board_game_io_base::game::Game as GameTrait;
@@ -77,7 +77,14 @@ impl GameTrait for Game {
     type Action = Action;
     type Config = Config;
 
-    fn new(Config { size, word_lists }: Config, num_players: u32) -> Result<Self> {
+    fn new(
+        Config {
+            size,
+            word_lists,
+            custom_words,
+        }: Config,
+        num_players: u32,
+    ) -> Result<Self> {
         let players: Vec<PlayerId> = (0..num_players).map(|x| PlayerId(x)).collect();
         let mut tiles: Vec<Tile> = (0..size.row)
             .flat_map(|row| (0..size.col).map(move |col| Tile { row, col }))
@@ -91,20 +98,25 @@ impl GameTrait for Game {
         let player_tiles: BTreeMap<PlayerId, Option<Tile>> =
             players.iter().map(|p| (*p, tiles.pop())).collect();
         let all_word_lists = get_word_lists();
-        let word_set: HashSet<&&'static str> = word_lists.into_iter().flat_map(|(key, enabled)| {
-            if enabled {
-                all_word_lists.get(&key).unwrap().into_iter()
-            } else {
-                [].iter()
-            }
-        }).collect();
-        let words: Vec<&&'static str> = word_set.into_iter().collect();
+        let mut word_set: HashSet<String> = word_lists
+            .into_iter()
+            .filter_map(|(key, enabled)| if enabled { Some(key) } else { None })
+            .flat_map(|key| {
+                all_word_lists
+                    .get(&key)
+                    .unwrap()
+                    .into_iter()
+                    .map(|w| w.to_string().clone())
+            })
+            .collect();
+        word_set.extend(custom_words.into_iter());
+        let words: Vec<String> = word_set.into_iter().collect();
         if words.len() < size.row + size.col {
             return Err(Error::InvalidCreate);
         }
         let labels: Vec<String> = words
             .choose_multiple(&mut thread_rng(), size.row + size.col)
-            .map(|s| s.to_string())
+            .map(|w| w.clone())
             .collect();
         Ok(Game {
             size,

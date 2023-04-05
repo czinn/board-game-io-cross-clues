@@ -7,13 +7,19 @@ use crate::words::get_word_lists;
 pub struct Config {
     pub size: Tile,
     pub word_lists: Vec<(String, bool)>,
+    pub custom_words: Vec<String>,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
             size: Tile { row: 4, col: 4 },
-            word_lists: get_word_lists().iter().enumerate().map(|(i, (key, _value))| (key.clone(), i == 0)).collect(),
+            word_lists: get_word_lists()
+                .iter()
+                .enumerate()
+                .map(|(i, (key, _value))| (key.clone(), i == 0))
+                .collect(),
+            custom_words: Vec::new(),
         }
     }
 }
