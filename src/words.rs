@@ -607,5 +607,8 @@ pub const CODENAMES_WORDS: &'static [&'static str] = &[
 ];
 
 pub fn get_word_lists() -> HashMap<String, &'static [&'static str]> {
-    HashMap::from([("cross-clues".into(), BASE_WORDS), ("codenames".into(), CODENAMES_WORDS)])
+    HashMap::from([
+        ("cross-clues".into(), BASE_WORDS),
+        ("codenames".into(), CODENAMES_WORDS),
+    ])
 }
