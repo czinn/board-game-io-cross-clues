@@ -42,7 +42,7 @@ function update_config() {
         <li>{word_list[0]} <input type=checkbox disabled={readonly} bind:checked={word_list[1]} on:change={update_config}/></li>
       {/each}
     </ul>
-    <textarea disabled={readonly} bind:value={custom_words} on:change={update_config}/>
+    <textarea placeholder="Custom words, separated by commas" disabled={readonly} bind:value={custom_words} on:change={update_config}/>
   {/if}
 </div>
 
