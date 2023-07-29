@@ -49,22 +49,24 @@ function toggle_vote(row, col) {
 <div class="content">
   <h1>Cross Clues</h1>
   {#if $view.players_with_tiles.length === 0}
-    <h2>Score: { $view.size.row * $view.size.col - $view.bad_clues.length }</h2>
+    <h2>Score: { $view.size.row * $view.size.col - $view.bad_clues.length } / { $view.size.row * $view.size.col }</h2>
   {/if}
-  {#if $view.player_tile !== null}
-    <p>Your tile is <strong>{ tile_coords($view.player_tile) }</strong> ({$col_labels[$view.player_tile.col]}, {$row_labels[$view.player_tile.row]})</p>
-  {/if}
-  {#if $view.player_tile !== null && ($view.current_clue === null || $view.current_clue.player !== $player_id)}
-    <form on:submit|preventDefault={() => give_clue()}>
-      <input bind:value={clue_to_give}/>
-      <button type='submit' disabled={!clue_is_valid(clue_to_give) || $view.current_clue !== null}>
-        Give Clue
-      </button>
-    </form>
-  {/if}
-  {#if $view.current_clue !== null}
-    <p class='clue'><PlayerName player_id={$view.current_clue.player}/> gave the clue <strong>{$view.current_clue.clue}</strong></p>
-  {/if}
+  <div class="top">
+    {#if $view.player_tile !== null}
+      <p>Your tile is <strong>{ tile_coords($view.player_tile) }</strong> ({$col_labels[$view.player_tile.col]}, {$row_labels[$view.player_tile.row]})</p>
+    {/if}
+    {#if $view.player_tile !== null && ($view.current_clue === null || $view.current_clue.player !== $player_id)}
+      <form on:submit|preventDefault={() => give_clue()}>
+        <input bind:value={clue_to_give}/>
+        <button type='submit' disabled={!clue_is_valid(clue_to_give) || $view.current_clue !== null}>
+          Give Clue
+        </button>
+      </form>
+    {/if}
+    {#if $view.current_clue !== null}
+      <p class='clue'><PlayerName player_id={$view.current_clue.player}/> gave the clue <strong>{$view.current_clue.clue}</strong></p>
+    {/if}
+  </div>
   <table class='cards'>
     <tr>
       <td></td>
@@ -197,5 +199,9 @@ span.number {
 .bad-clue {
   color: #FF0000;
   font-size: 1.5em;
+}
+
+.top {
+  height: 10em;
 }
 </style>
