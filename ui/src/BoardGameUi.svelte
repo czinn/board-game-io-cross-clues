@@ -80,7 +80,7 @@ function get_addr() {
   {:else}
     {#if $user_id === null}
       <form on:submit|preventDefault={() => client.join_room(new_username)}>
-        <input placeholder="Username" bind:value={new_username}>
+        <input placeholder="Username" bind:value={new_username} autocomplete="username">
         <button type="submit">
           {#if $room_id === null}
             Create Room
