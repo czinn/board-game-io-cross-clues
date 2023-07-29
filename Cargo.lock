@@ -38,6 +38,7 @@ dependencies = [
 [[package]]
 name = "board-game-io-base"
 version = "0.1.0"
+source = "git+https://github.com/czinn/board-game-io-base.git#61d79ae75d604bb0590063e17c01f82f75497d01"
 dependencies = [
  "futures-util",
  "json-patch",
