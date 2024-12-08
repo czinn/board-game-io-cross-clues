@@ -14,6 +14,8 @@ use crate::config::Config;
 use crate::tile::Tile;
 use crate::words::get_word_lists;
 
+const ROW_LIMIT: usize = 26;
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Clue {
     player: PlayerId,
@@ -85,6 +87,9 @@ impl GameTrait for Game {
         }: Config,
         num_players: u32,
     ) -> Result<Self> {
+        if size.row == 0 || size.col == 0 || size.row > ROW_LIMIT || size.col > ROW_LIMIT {
+            return Err(Error::InvalidCreate);
+        }
         let players: Vec<PlayerId> = (0..num_players).map(|x| PlayerId(x)).collect();
         let mut tiles: Vec<Tile> = (0..size.row)
             .flat_map(|row| (0..size.col).map(move |col| Tile { row, col }))
@@ -241,11 +246,11 @@ impl GameTrait for Game {
                     None => return Err(Error::InvalidAction("no active clue".into())),
                 };
                 if self.good_clues[tile.row][tile.col].is_some() {
-                    self.current_clue.insert(current_clue);
+                    let _ = self.current_clue.insert(current_clue);
                     return Err(Error::InvalidAction("tile is not open".into()));
                 }
                 if current_clue.player == player {
-                    self.current_clue.insert(current_clue);
+                    let _ = self.current_clue.insert(current_clue);
                     return Err(Error::InvalidAction("cannot guess for own clue".into()));
                 }
                 // action is valid
